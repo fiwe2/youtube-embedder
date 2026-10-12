@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Embedder</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 32px 16px;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      background: #111827;
+      color: #f9fafb;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    main {
+      width: min(100%, 760px);
+      background: #1f2937;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 12px 36px #0004;
+    }
+
+    h1 { margin-top: 0; font-size: 1.7rem; }
+    p { color: #d1d5db; line-height: 1.5; }
+
+    form {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0 12px;
+    }
+
+    input {
+      min-width: 0;
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      background: #111827;
+      color: #f9fafb;
+      font: inherit;
+    }
+
+    button {
+      padding: 12px 18px;
+      border: 0;
+      border-radius: 8px;
+      background: #ef4444;
+      color: white;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover { background: #dc2626; }
+
+    .message {
+      min-height: 1.5em;
+      color: #fca5a5;
+      margin: 8px 0 16px;
+    }
+
+    .video-wrapper {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #030712;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .video-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .empty {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      padding: 20px;
+      text-align: center;
+      color: #9ca3af;
+    }
+
+    .hidden { display: none; }
+
+    @media (max-width: 520px) {
+      form { flex-direction: column; }
+      button { width: 100%; }
+      main { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>YouTube Embedder</h1>
+    <p>Paste a YouTube video link below, then select <strong>Embed video</strong>.</p>
+
+    <form id="embed-form">
+      <input
+        id="youtube-url"
+        type="url"
+        placeholder="https://www.youtube.com/watch?v=..."
+        aria-label="YouTube video URL"
+        required
+      />
+      <button type="submit">Embed video</button>
+    </form>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <section id="video-section" class="hidden" aria-label="Embedded YouTube video">
+      <div class="video-wrapper" id="video-wrapper"></div>
+      <p><a id="open-original" href="#" target="_blank" rel="noopener noreferrer" style="color:#93c5fd">Open original video on YouTube</a></p>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("embed-form");
+    const input = document.getElementById("youtube-url");
+    const message = document.getElementById("message");
+    const videoSection = document.getElementById("video-section");
+    const videoWrapper = document.getElementById("video-wrapper");
+    const openOriginal = document.getElementById("open-original");
+
+    function getYouTubeVideoId(rawUrl) {
+      let url;
+
+      try {
+        url = new URL(rawUrl.trim());
+      } catch {
+        return null;
+      }
+
+      const host = url.hostname.toLowerCase().replace(/^www\./, "");
+
+      if (host === "youtu.be") {
+        return url.pathname.split("/").filter(Boolean)[0] || null;
+      }
+
+      if (
+        host === "youtube.com" ||
+        host === "m.youtube.com" ||
+        host === "music.youtube.com" ||
+        host === "youtube-nocookie.com"
+      ) {
+        if (url.pathname === "/watch") {
+          return url.searchParams.get("v");
+        }
+
+        const match = url.pathname.match(/^\/(embed|shorts|live)\/([^/?]+)/);
+        return match ? match[2] : null;
+      }
+
+      return null;
+    }
+
+    function isValidVideoId(id) {
+      // YouTube video IDs are normally 11 characters.
+      return typeof id === "string" && /^[a-zA-Z0-9_-]{11}$/.test(id);
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const rawUrl = input.value.trim();
+      const videoId = getYouTubeVideoId(rawUrl);
+
+      if (!isValidVideoId(videoId)) {
+        message.textContent =
+          "Please enter a valid YouTube video URL (not a channel or playlist link).";
+        videoSection.classList.add("hidden");
+        videoWrapper.replaceChildren();
+        return;
+      }
+
+      message.textContent = "";
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}`;
+      iframe.title = "Embedded YouTube video";
+      iframe.allow =
+        "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+      iframe.referrerPolicy = "strict-origin-when-cross-origin";
+      iframe.allowFullscreen = true;
+
+      videoWrapper.replaceChildren(iframe);
+      openOriginal.href = `https://www.youtube.com/watch?v=${videoId}`;
+      videoSection.classList.remove("hidden");
+    });
+  </script>
+</body>
+</html>
